@@ -93,10 +93,10 @@ def compute_all_steering_vect(mic_pos, ref_pos, doas, freqs, c=343.):
 
 
 def plot_beampatten(beamforming='delay_and_sum', doa_deg=60, fquery=500, fquery_delta=1, 
-                    array_type='linear', phi=0, n_mics=4, spacing=0.1):
+                    array_type='linear', phi=0, n_mics=4, spacing=0.1, Fs=16000,
+                    beampatten_views='Speech [100Hz - 8kHz]'):
 
     # HPARAMS
-    Fs = 48000
     speed_of_sound = 343.
     n_rfft = 1025
 
@@ -166,11 +166,12 @@ def plot_beampatten(beamforming='delay_and_sum', doa_deg=60, fquery=500, fquery_
     idx_f8k = np.argmin(np.abs(freqs - 8000))
     idx_fquery_min = max(np.argmin(np.abs(freqs - (fquery - fquery_delta))), 0)
     idx_fquery_max = min(np.argmin(np.abs(freqs - (fquery + fquery_delta))), 8000)
+
     
-    beampattern["0-100"] = np.mean(B_abs[:idx_f100,:], axis=0)
-    beampattern["100-8k"] = np.mean(B_abs[idx_f100:idx_f8k+1,:], axis=0)
-    beampattern["all"] =  np.mean(B_abs, axis=0)
-    beampattern["narrow"] =  np.mean(B_abs[idx_fquery_min:idx_fquery_max+1,:], axis=0)
+    # beampattern["0-100 Hz"] = np.mean(B_abs[:idx_f100,:], axis=0)
+    beampattern['Speech [100Hz - 8kHz]'] = np.mean(B_abs[idx_f100:idx_f8k+1,:], axis=0)
+    beampattern["All"] =  np.mean(B_abs, axis=0)
+    beampattern["User-defined"] =  np.mean(B_abs[idx_fquery_min:idx_fquery_max+1,:], axis=0)
 
     noise_cov = dict()
     Rn = np.abs(Rn)**2
@@ -182,19 +183,22 @@ def plot_beampatten(beamforming='delay_and_sum', doa_deg=60, fquery=500, fquery_
     # PLOT
     fig = go.Figure()
     
-    for key in beampattern:
+    for key in beampatten_views:
         fig.add_trace(go.Scatterpolar(
             r = beampattern[key],
             theta = np.rad2deg(az),
             mode = 'lines',
-            name = f'Beampattern {key}',
+            name = f'Freqs: {key}',
         ))
+
     fig.add_trace(go.Scatterpolar(
-            r = np.array([1.1]),
+            r = np.array([1.05]),
             theta = np.rad2deg(np.array([target_azi])),
             mode = 'markers',
             marker = {"size" : 10*np.ones_like(mic_pos_polar[0,:])},
-            name = 'Source DOA'
+            name = 'Source DOA',
+            line_color = 'orange',
+            opacity=1,
     ))
     fig.add_trace(go.Scatterpolar(
             r = mic_pos_polar[0,:],
@@ -229,6 +233,9 @@ def plot_beampatten(beamforming='delay_and_sum', doa_deg=60, fquery=500, fquery_
                     labels=dict(x="Mics", y="Mics", color="Scale"))
     fig.update_xaxes(showticklabels=False)
     fig.update_yaxes(showticklabels=False)
+    fig.update_layout(
+        title = 'Noise covariance matrix',
+    )
     fig_noise_cov = fig
     
     return fig_beampattern, fig_noise_cov
