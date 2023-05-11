@@ -73,5 +73,7 @@ def main():
 
     st.plotly_chart(fig_Rn, theme="streamlit", use_container_width=True, height=800)
 
+    st.write("Created by [Chutlhu](https://github.com/Chutlhu)")
+
 if __name__ == "__main__":
     main()
