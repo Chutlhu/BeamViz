@@ -53,7 +53,7 @@ def diag_load_cov(R, diag_load_mode ='cond', diag_load_val = int(1e2)):
     # R (ndarray)  covariance matrix [nChan x nChan]
     nChan = R.shape[0]
     
-    if diag_load_mode:
+    if diag_load_mode == 'cost':
         R = R + diag_load_val * np.eye(nChan)
     else:
         cn0 = np.linalg.cond(R) # original condition number
@@ -73,8 +73,8 @@ def compute_iso_weights(svect, dirs):
     R_iso = svect[:,:,:,None] @ np.conj(svect[:,:,None,:])      # [nFreq x nDir x nChan x nChan]
     R_iso = R_iso * w_quad # quadrature weighting
     R_iso = np.squeeze(np.sum(R_iso,axis = 1))  # [nFreq x nChan x nChan]
-    for fi in range(nFreq):
-        R_iso[fi,:,:] = diag_load_cov(np.squeeze(R_iso[fi,:,:]))
+    # for fi in range(nFreq):
+    #     R_iso[fi,:,:] = diag_load_cov(np.squeeze(R_iso[fi,:,:]))
     return R_iso
 
 
@@ -128,36 +128,33 @@ def plot_beampatten(beamforming='delay_and_sum', doa_deg=60, fquery=500, fquery_
         Rn = np.eye(n_mics)
         Rn = np.matlib.tile(Rn,(n_rfft,1,1))   # [nFreq x nChan x nChan]
     
-    elif beamforming == 'isotropic_mvdr':
+    elif beamforming == 'max_di':
         el = np.array([0.])
         az = np.deg2rad(np.arange(0, 360))
         doas = np.stack(np.meshgrid(az, el, indexing='ij'), axis=-1).reshape(-1,2)
 
         all_svect = compute_all_steering_vect(mic_pos, ref_pos, doas, freqs)     # [nFreqs x nDirs x nMics]
         Rn = compute_iso_weights(all_svect, doas)                             # [nFreqs x nMics x nMics]
-        weights = mvdr(svect, Rn)
+        weights = mvdr(svect, Rn) # [nFreqs x nMics]
 
     else:
         raise ValueError(f' "{beamforming}" beamformer does not exist')
 
+    # Check beamformer
+    out = np.einsum("fi,fi->f", np.conj(weights), svect)
+    assert np.allclose(np.abs(out), np.ones_like(out))
 
     ## BEAMPATTERN FOR ALL
 
     # all possible direction
-    n_doas = 360
     el = np.array([0.])
-    az = np.deg2rad(np.linspace(0,360,n_doas))
+    az = np.deg2rad(np.arange(0,360))
     doas = np.stack(np.meshgrid(az, el, indexing='ij'), axis=-1).reshape(-1,2)
     all_svect = compute_all_steering_vect(mic_pos, ref_pos, doas, freqs)     # [nFreqs x nDirs x nMics]
 
     # compute beampattern
-    B = np.zeros((n_rfft, n_doas))
-
-    for f in range(n_rfft):
-        B[f,:] = np.abs(np.sum(weights.conj()[f,None,...] * all_svect[f,...], axis=-1))**2
-
-    B_abs = np.abs(B)**2
-    B_abs = B_abs / np.max(B_abs)
+    B = np.einsum('fi,fdi->fd', np.conj(weights), all_svect)
+    B_abs = np.abs(B)
 
     # diplay freqs ranges
     freqs = np.linspace(0, Fs/2, n_rfft)
@@ -169,9 +166,12 @@ def plot_beampatten(beamforming='delay_and_sum', doa_deg=60, fquery=500, fquery_
 
     
     # beampattern["0-100 Hz"] = np.mean(B_abs[:idx_f100,:], axis=0)
-    beampattern['Speech [100Hz - 8kHz]'] = np.mean(B_abs[idx_f100:idx_f8k+1,:], axis=0)
+    beampattern['Speech [100Hz - 8kHz]'] = np.mean(B_abs[idx_f100:idx_f8k,:], axis=0)
     beampattern["All"] =  np.mean(B_abs, axis=0)
-    beampattern["User-defined"] =  np.mean(B_abs[idx_fquery_min:idx_fquery_max+1,:], axis=0)
+    if idx_fquery_max == idx_fquery_min:
+        beampattern["User-defined"] =  B_abs[idx_fquery_min,:]
+    else:
+        beampattern["User-defined"] =  np.mean(B_abs[idx_fquery_min:idx_fquery_max,:], axis=0)
 
     noise_cov = dict()
     Rn = np.abs(Rn)**2
@@ -242,5 +242,7 @@ def plot_beampatten(beamforming='delay_and_sum', doa_deg=60, fquery=500, fquery_
 
 
 if __name__ ==  "__main__":   
-    fig = plot_beampatten(60)
+    fig,  _ = plot_beampatten(
+        'max_di', 
+        doa_deg=64) 
     fig.show()

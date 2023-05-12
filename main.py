@@ -30,19 +30,19 @@ def main():
         ('linear', 'circular', 'easycom'))
     Fs = st.sidebar.number_input('Sampling Frequency [Hz]', 1, 96000, 16000)
     
-    array_radius = st.sidebar.slider('Intermic spacing',  0., 0.5, 0.05)
+    array_radius = st.sidebar.slider('Intermic spacing',  1, 1000, 50) / 1000
     array_orient = st.sidebar.slider('Array orientation', 0, 360,  0)
     n_mics = st.sidebar.slider('N of mics', 0, 10, 4)
 
     st.sidebar.write("### Beamformer")
     bf_type = st.sidebar.selectbox(
         "Which beamformer?",
-        ('delay_and_sum', 'isotropic_mvdr'))
+        ('delay_and_sum', 'max_di'))
 
     
     st.sidebar.write('### Narrowband beampattern config')
-    fquery = st.sidebar.slider('Query frequency [Hz]', 0, 8000, 100)
-    fdelta = st.sidebar.slider('Delta frequency [Hz]', 0, 8000, 1)
+    fquery = st.sidebar.slider('Query frequency [Hz]', 0, Fs, 100)
+    fdelta = st.sidebar.slider('Delta frequency [Hz]', 0, Fs, 1)
 
     beampatten_views = st.multiselect(
         'Which frequencies?',
