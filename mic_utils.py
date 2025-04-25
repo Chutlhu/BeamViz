@@ -48,6 +48,15 @@ def get_easycom_array(center=None, binaural_mic=True):
 	return P_3M
 
 
+def get_hololens_array():
+    R = np.array([
+        [0., 0., 0.],
+        [0.055,  0.016,  0.],
+        [0.055, 0.016, 0.],
+        [0.039, 0.032, 0.085],
+        [ 0.021, 0.032, 0.085]]).T
+    return R
+
 def get_array(array_type, array_center, array_prop=None):
 
 	geo.check_geo_dim_convention(array_center)
